@@ -469,11 +469,13 @@ public class SetFileCreationFrame extends javax.swing.JFrame {
                     }
                     if (!foundTag) {
                         jTextAreaResults.append(gutter);
+                        jTextAreaResults.append(gutter);
                         jTextAreaResults.append("Could not find the appropriate tag for " + path.getFileName().toString());
                         jTextAreaResults.append(NEW_LINE);
                         continue;
                     }
                 } catch (DateTimeParseException ex) {
+                    jTextAreaResults.append(gutter);
                     jTextAreaResults.append(gutter);
                     jTextAreaResults.append("Unable to parse timestamp for " + path.getFileName().toString() + ", " + ex.getMessage());
                     jTextAreaResults.append(NEW_LINE);
@@ -482,6 +484,7 @@ public class SetFileCreationFrame extends javax.swing.JFrame {
                     //Exception might be thrown if trying to do this on a non-picture image
                     //System.out.println("Error when getting meta data: " + ex.getMessage());
                     //ex.printStackTrace();
+                    jTextAreaResults.append(gutter);
                     jTextAreaResults.append(gutter);
                     jTextAreaResults.append("Unable to get meta data for " + path.getFileName().toString() + ", " + ex.getMessage());
                     jTextAreaResults.append(NEW_LINE);
