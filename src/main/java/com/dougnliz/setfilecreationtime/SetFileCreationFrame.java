@@ -4,9 +4,11 @@
  */
 package com.dougnliz.setfilecreationtime;
 
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Directory;
+import com.drew.metadata.Tag;
 import java.awt.event.WindowEvent;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -17,11 +19,11 @@ import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -197,8 +199,8 @@ public class SetFileCreationFrame extends javax.swing.JFrame {
         aboutDialog.setAppName(PROGRAM_NAME);
         aboutDialog.setDeveloper("Doug Thompson");
         aboutDialog.setVersion(PROGRAM_VERSION);
-        aboutDialog.setWebsite("Application Site", "https://github.com/Dougnlizt/AndroidFileXferDateFix");
-        aboutDialog.setAppReadme("https://github.com/Dougnlizt/AndroidFileXferDateFix/Readme.md");
+        aboutDialog.setWebsite("Application Site", "https://github.com/Dougnlizt/Afix");
+        aboutDialog.setAppReadme("https://github.com/Dougnlizt/Afix/tree/master#readme");
         aboutDialog.setLocationRelativeTo(this);
         aboutDialog.setVisible(true);
     }//GEN-LAST:event_jMenuItem1ActionPerformed
@@ -262,7 +264,7 @@ public class SetFileCreationFrame extends javax.swing.JFrame {
     // End of variables declaration//GEN-END:variables
 
     private final static String PROGRAM_NAME = "Afix - Android File Xfer Creation Fix";
-    private static String PROGRAM_VERSION = "1.0.0";
+    private static String PROGRAM_VERSION = "2022.2.19";
 
     private static SetFileCreationFrame setFileCreationFrame;
     private final String homeDir = System.getProperty("user.home");
@@ -277,10 +279,18 @@ public class SetFileCreationFrame extends javax.swing.JFrame {
 
     private void initMyComponents() {
         try {
-            Properties properties = new Properties();
-            InputStream input = this.getClass().getResourceAsStream("project.properties");
-            properties.load(input);
-            PROGRAM_VERSION = properties.getProperty("version");
+            //System.out.println("Current dir: " + System.getProperty("user.dir"));
+            InputStream input = this.getClass().getResourceAsStream("/target/classes/properties-from-pom.properties");
+            if (input != null) {
+                Properties properties = new Properties();
+                properties.load(input);
+                PROGRAM_VERSION = properties.getProperty("version");
+            } else {
+                var version = getClass().getPackage().getImplementationVersion();
+                if (version != null) {
+                    PROGRAM_VERSION = version;
+                }
+            }
         } catch(Exception ex) {
             ex.printStackTrace();
         }
@@ -428,12 +438,67 @@ public class SetFileCreationFrame extends javax.swing.JFrame {
             }
             LocalDateTime fileModifiedTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(path.toFile().lastModified()), ZoneId.systemDefault());
             try {
-                if (setFileCreationDate(path, fileModifiedTime)) {
+                LocalDateTime timeStampToUse = fileModifiedTime;
+                //The photo's meta data may have different file information, including the actual timestamp
+                //  of when the picture was taken.  Meta values come in a list of strings that then need
+                //  to be parsed.
+                LocalDateTime fileCreatedTime = null;
+                try {
+                    var metadata = ImageMetadataReader.readMetadata(path.toFile());
+                    var foundTag = false;
+                    for (Directory directory : metadata.getDirectories()) {
+                        for (Tag tag : directory.getTags()) {
+                            System.out.println(tag);
+                            //MP4s have 'Creation Time' tag with a Sun Jul 12 08:23:13 MST 2021 timestamp
+                            //Images like jpg have a 'Date/Time Original' tag with a 2021:07:12 08:23:13 timestamp
+                            if (tag.getTagName().equals("Creation Time")) {
+                                foundTag = true;
+                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss zzz yyyy");
+                                fileCreatedTime = LocalDateTime.parse(tag.getDescription(), formatter);
+                                break;
+                            } else if (tag.getTagName().equals("Date/Time Original")) {
+                                foundTag = true;
+                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss");
+                                fileCreatedTime = LocalDateTime.parse(tag.getDescription(), formatter);
+                                break;
+                            }
+                        }
+                        if (fileCreatedTime != null) {
+                            break;
+                        }
+                    }
+                    if (!foundTag) {
+                        jTextAreaResults.append(gutter);
+                        jTextAreaResults.append("Could not find the appropriate tag for " + path.getFileName().toString());
+                        jTextAreaResults.append(NEW_LINE);
+                        continue;
+                    }
+                } catch (DateTimeParseException ex) {
                     jTextAreaResults.append(gutter);
-                    jTextAreaResults.append("Set " + path.getFileName().toString() + " created time to " + fileModifiedTime.toString());
+                    jTextAreaResults.append("Unable to parse timestamp for " + path.getFileName().toString() + ", " + ex.getMessage());
+                    jTextAreaResults.append(NEW_LINE);
+                    continue;
+                } catch (Exception ex) {
+                    //Exception might be thrown if trying to do this on a non-picture image
+                    //System.out.println("Error when getting meta data: " + ex.getMessage());
+                    //ex.printStackTrace();
+                    jTextAreaResults.append(gutter);
+                    jTextAreaResults.append("Unable to get meta data for " + path.getFileName().toString() + ", " + ex.getMessage());
+                    jTextAreaResults.append(NEW_LINE);
+                    continue;
+                }
+                if (fileCreatedTime != null) {
+                    //Compare with modified time
+                    if (fileCreatedTime.isBefore(fileModifiedTime)) {
+                        timeStampToUse = fileCreatedTime;
+                    }
+                }
+                if (setFileCreationDate(path, timeStampToUse)) {
+                    jTextAreaResults.append(gutter);
+                    jTextAreaResults.append("Set " + path.getFileName().toString() + " created time to " + timeStampToUse.toString());
                     jTextAreaResults.append(NEW_LINE);
                 }
-            } catch (IOException ex) {
+            } catch (Exception ex) {
                 jTextAreaResults.append(gutter);
                 jTextAreaResults.append("Can't do " + path.toString());
                 jTextAreaResults.append(NEW_LINE);
@@ -447,7 +512,7 @@ public class SetFileCreationFrame extends javax.swing.JFrame {
 
     public boolean setFileCreationDate(Path filePath, LocalDateTime creationDate) throws IOException {
         //TODO: For testing only
-        if (true == true) {
+        if (true == false) {
             return true;
         }
         BasicFileAttributeView attributes = Files.getFileAttributeView(filePath, BasicFileAttributeView.class);

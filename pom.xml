@@ -3,9 +3,85 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.dougnliz</groupId>
     <artifactId>SetFileCreationTime</artifactId>
-    <version>2022.1.26.1</version>
+    <version>2022.2.19</version>
     <packaging>jar</packaging>
+    <name>Afix</name>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-imaging</artifactId>
+            <version>1.0-alpha2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.drewnoakes</groupId>
+            <artifactId>metadata-extractor</artifactId>
+            <version>2.16.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <finalName>Afix</finalName>
+                    <appendAssemblyId>false</appendAssemblyId>
+
+                    <!-- get all project dependencies -->
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>                                
+                    </descriptorRefs>
+                    
+                    <!-- MainClass in mainfest make a executable jar -->
+                    <archive>
+                        <manifest>
+                            <mainClass>com.dougnliz.setfilecreationtime.SetFileCreationFrame</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <SplashScreen-Image>images/android_tool.png</SplashScreen-Image>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId> 
+                <artifactId>properties-maven-plugin</artifactId> 
+                <version>1.0.0</version> 
+                <executions> 
+                    <execution> 
+                        <phase>generate-resources</phase> 
+                        <goals> 
+                            <goal>write-project-properties</goal> 
+                        </goals> 
+                        <configuration> 
+                            <outputFile>${project.build.outputDirectory}/properties-from-pom.properties</outputFile> 
+                        </configuration> 
+                    </execution> 
+                </executions> 
+            </plugin>
+        </plugins>            
+    </build>
+    
     <properties>
+        <version>${project.version}</version>
+        <name>${project.name}</name>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
